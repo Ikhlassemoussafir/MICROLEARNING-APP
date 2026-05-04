@@ -21,7 +21,6 @@ public class Grain {
     private String description;
     
     @Enumerated(EnumType.STRING)
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.NAMED_ENUM)
     @Column(name = "difficulty_level", nullable = false)
     private DifficultyLevel difficultyLevel;
     
@@ -29,7 +28,6 @@ public class Grain {
     private Integer estimatedDuration;
     
     @Enumerated(EnumType.STRING)
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.NAMED_ENUM)
     @Column(name = "target_vark_style", nullable = false)
     private VarkStyle targetVarkStyle;
     

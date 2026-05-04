@@ -30,12 +30,10 @@ public class VarkProfile {
     private Integer kinestheticScore;
     
     @Enumerated(EnumType.STRING)
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.NAMED_ENUM)
     @Column(name = "dominant_style")
     private VarkStyle dominantStyle;
     
     @Enumerated(EnumType.STRING)
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.NAMED_ENUM)
     @Column(name = "current_level")
     private DifficultyLevel currentLevel = DifficultyLevel.DEBUTANT;
     
