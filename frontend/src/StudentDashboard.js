@@ -79,16 +79,28 @@ function VARKProfile({ profile, onRetake }) {
 
 /* ── GRAIN CARD ── */
 function GrainCard({ grain, recommended, userProgress, onClick }) {
-  const done = userProgress?.status==='MAITRISE'||userProgress?.status==='COMPLETE';
+  const hasAttempted = !!userProgress;
+  const isComplete = userProgress?.status==='MAITRISE'||userProgress?.status==='COMPLETE';
   const score = userProgress?.bestScore||0;
   const lvlPill = {DEBUTANT:'pill-emerald',INTERMEDIAIRE:'pill-orange',AVANCE:'pill-pink'}[grain.difficultyLevel]||'pill-gray';
   const lvlLabel = {DEBUTANT:'Débutant',INTERMEDIAIRE:'Intermédiaire',AVANCE:'Avancé'}[grain.difficultyLevel]||grain.difficultyLevel;
+  
+  let btnText = 'Commencer';
+  let btnColor = 'from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500';
+  if (isComplete) {
+    btnText = 'Revoir';
+    btnColor = 'from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500';
+  } else if (hasAttempted) {
+    btnText = 'Revoir';
+    btnColor = 'from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400';
+  }
+
   return (
     <div onClick={onClick} className={`grain-card ${recommended?'recommended':''}`}>
       {recommended&&<div className="absolute -top-3 left-4"><span className="pill pill-purple shadow-lg"><Zap size={9}/> Recommandé IA</span></div>}
       <div className="flex items-start justify-between mb-2 relative z-10">
         <span className={`pill ${lvlPill}`}>{lvlLabel}</span>
-        {done&&<CheckCircle size={16} style={{color:'var(--accent-emerald)'}}/>}
+        {isComplete&&<CheckCircle size={16} style={{color:'var(--accent-emerald)'}}/>}
       </div>
       <h4 className="font-semibold text-sm mb-1 line-clamp-2 relative z-10" style={{color:'var(--text-primary)'}}>{grain.title}</h4>
       <p className="text-xs mb-3 line-clamp-2 relative z-10" style={{color:'var(--text-muted)'}}>{grain.description||'Description du grain pédagogique'}</p>
@@ -96,14 +108,14 @@ function GrainCard({ grain, recommended, userProgress, onClick }) {
         <span className="flex items-center gap-1"><Clock size={11}/>{grain.estimatedDuration||5}m</span>
         <span className="flex items-center gap-1"><Target size={11}/>{grain.targetVarkStyle}</span>
       </div>
-      {done&&(
+      {hasAttempted&&(
         <div className="mb-3 relative z-10">
           <div className="flex justify-between text-xs mb-1"><span style={{color:'var(--text-muted)'}}>Meilleur score</span><span className="font-bold" style={{color:score>=70?'var(--accent-emerald)':'var(--accent-orange)'}}>{score}%</span></div>
           <div className="progress-bar"><div className="progress-fill" style={{width:`${score}%`,background:score>=70?'linear-gradient(90deg,#10b981,#06b6d4)':'linear-gradient(90deg,#f97316,#ec4899)'}}/></div>
         </div>
       )}
-      <button className="w-full py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 transition-all flex items-center justify-center gap-1.5 relative z-10">
-        <Play size={12}/>{done?'Revoir':'Commencer'}
+      <button className={`w-full py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r ${btnColor} transition-all flex items-center justify-center gap-1.5 relative z-10`}>
+        <Play size={12}/>{btnText}
       </button>
     </div>
   );
@@ -211,7 +223,7 @@ function StudentDashboard({ userData }) {
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
-            {label:'Grains complétés',value:`${completedGrains}/${grains.length}`,icon:CheckCircle,type:'purple',sub:`${grains.length>0?Math.round(completedGrains/grains.length*100):0}% du parcours`},
+            {label:'Grains validés',value:`${completedGrains}/${grains.length}`,icon:CheckCircle,type:'purple',sub:`Score de maîtrise atteint`},
             {label:'Score moyen',value:`${avgScore}%`,icon:Trophy,type:'cyan',sub:avgScore>=70?'Très bien !':'Continuez ainsi'},
             {label:'Badges gagnés',value:badges.length,icon:Award,type:'orange',sub:'sur 12 disponibles'},
             {label:'Temps total',value:`${Math.round(totalTime/60)}m`,icon:Clock,type:'emerald',sub:'cette semaine'},
@@ -259,7 +271,7 @@ function StudentDashboard({ userData }) {
         <div className="glass rounded-2xl p-6 animate-fade-up">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-bold text-sm flex items-center gap-2" style={{color:'var(--text-primary)'}}><Book size={16} style={{color:'var(--accent-purple)'}}/> Tous les grains pédagogiques</h3>
-            <span className="text-xs" style={{color:'var(--text-muted)'}}>{grains.length} grains · {completedGrains} complétés</span>
+            <span className="text-xs" style={{color:'var(--text-muted)'}}>{grains.length} grains · {completedGrains} validés</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {sorted.map((grain,i)=>(

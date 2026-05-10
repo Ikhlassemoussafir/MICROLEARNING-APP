@@ -10,7 +10,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/badges")
-@CrossOrigin(origins = "*")
+
 public class BadgeController {
 
     @Autowired

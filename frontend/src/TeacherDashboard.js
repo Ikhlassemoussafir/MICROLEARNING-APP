@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Users, BookOpen, TrendingUp, AlertCircle, Plus, Edit, Trash2, BarChart3, Activity, Clock, Target, Award, Download } from 'lucide-react';
+import { Users, BookOpen, TrendingUp, AlertCircle, Plus, Edit, Trash2, BarChart3, Activity, Clock, Target, Award, Download, FileText } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RPie, Pie, Cell, AreaChart, Area, Legend } from 'recharts';
 import CreateGrainModal from './CreateGrainModal';
 import { createGrain, updateGrain, deleteGrain } from './services/api';
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 function TeacherDashboard() {
   const [grains, setGrains] = useState([]);
@@ -56,10 +58,111 @@ function TeacherDashboard() {
     }
   };
 
-  const handleExport = () => {
+  const handleExportCSV = () => {
     if(!students.length)return;
     const csv=[['Nom','Complétés','Score','Statut'].join(','),...students.map(s=>`"${s.name}",${s.completed},${s.score},"${statusCfg[s.status]?.label||s.status}"`)].join('\n');
     const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})); a.download='stats_etudiants.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF('p', 'pt', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // 1. HEADER
+    doc.setFillColor(41, 182, 210); // Couleur principale (Cyan/Bleu)
+    doc.rect(0, 0, pageWidth, 80, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text("RAPPORT D'ANALYSE PÉDAGOGIQUE", 40, 45);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`Date de génération : ${new Date().toLocaleDateString('fr-FR')}`, 40, 65);
+    doc.text("Plateforme MicroLearning - IA & VARK", pageWidth - 235, 65);
+
+    let yPos = 120;
+
+    // 2. KPIS
+    doc.setTextColor(40, 40, 40);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("1. Indicateurs Clés de Performance (Cohorte)", 40, yPos);
+    yPos += 25;
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.text(`• Étudiants Actifs au sein de la plateforme : ${stats.activeStudents} / ${stats.totalStudents}`, 50, yPos); yPos += 18;
+    doc.text(`• Score Moyen Global : ${stats.averageClassScore}%`, 50, yPos); yPos += 18;
+    doc.text(`• Taux de Complétion Général : ${stats.completionRate}%`, 50, yPos); yPos += 18;
+    doc.text(`• Étudiants en grande difficulté : ${stats.strugglingStudents}`, 50, yPos); yPos += 35;
+
+    // 3. IA SYNTHESIS (CREATIVE PART)
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(236, 72, 153); // Rose accent
+    doc.text("2. Synthèse et Recommandations (Généré par l'IA Pédagogique)", 40, yPos);
+    yPos += 25;
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(60, 60, 60);
+    
+    let insightText = "";
+    if (stats.averageClassScore >= 75) {
+      insightText += "La dynamique de la cohorte est excellente. Le niveau global de maîtrise indique une très bonne assimilation des concepts abordés. ";
+    } else {
+      insightText += "Le score moyen révèle plusieurs lacunes conceptuelles. Il est fortement conseillé de revoir la difficulté des premiers grains ou d'activer la remédiation IA. ";
+    }
+    if (stats.strugglingStudents > 0) {
+      insightText += `ATTENTION : L'algorithme a détecté que ${stats.strugglingStudents} apprenant(s) nécessite(nt) un suivi de toute urgence. Nous recommandons la génération d'exercices alternatifs personnalisés selon leurs profils cognitifs (VARK).`;
+    } else {
+      insightText += "Excellente nouvelle : aucun apprenant n'est actuellement signalé comme étant en décrochage ou en difficulté majeure.";
+    }
+    
+    // Wrap text to fit page
+    const splitText = doc.splitTextToSize(insightText, pageWidth - 80);
+    
+    // Draw a subtle background for the AI insight
+    doc.setFillColor(253, 242, 248); // Very light pink
+    doc.rect(40, yPos - 15, pageWidth - 80, (splitText.length * 15) + 20, 'F');
+    
+    doc.text(splitText, 50, yPos);
+    yPos += (splitText.length * 15) + 35;
+
+    // 4. DATA TABLE
+    doc.setTextColor(40, 40, 40);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("3. Suivi Détaillé des Apprenants", 40, yPos);
+    yPos += 15;
+
+    const tableData = students.map(s => [
+      s.name, 
+      s.completed.toString(), 
+      `${s.score}%`, 
+      statusCfg[s.status]?.label || s.status
+    ]);
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Nom de l\'Apprenant', 'Grains Complétés', 'Score Moyen', 'Statut Actuel']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [41, 182, 210], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      styles: { fontSize: 10, cellPadding: 6 },
+    });
+
+    // FOOTER
+    const finalY = doc.lastAutoTable.finalY || yPos;
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text("Ce rapport est strictement confidentiel. Conçu par le système intelligent MicroLearning.", 40, finalY + 30);
+
+    // DDL
+    doc.save("Rapport_Analytique_Microlearning.pdf");
   };
 
   const stats = statistics || mockStats;
@@ -81,7 +184,12 @@ function TeacherDashboard() {
             <p className="text-sm mt-1" style={{color:'var(--text-secondary)'}}>Gestion intelligente des parcours VARK</p>
           </div>
           <div className="flex gap-3">
-            <button onClick={handleExport} className="btn-ghost"><Download size={15}/> Exporter CSV</button>
+            <button onClick={handleExportCSV} className="btn-ghost" style={{padding: '0.5rem 1rem'}} title="Télécharger les données brutes">
+              <Download size={15}/> CSV
+            </button>
+            <button onClick={handleExportPDF} className="btn-primary" style={{background: 'linear-gradient(135deg, #ec4899, #f43f5e)', boxShadow: '0 8px 25px rgba(236,72,153,0.35)'}} title="Télécharger le rapport analytique">
+              <FileText size={15}/> Rapport PDF IA
+            </button>
             <button onClick={()=>{setGrainToEdit(null);setIsCreateModalOpen(true);}} className="btn-primary"><Plus size={15}/> Créer un grain</button>
           </div>
         </div>

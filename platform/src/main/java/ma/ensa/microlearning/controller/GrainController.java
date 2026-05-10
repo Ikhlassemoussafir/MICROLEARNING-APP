@@ -46,9 +46,12 @@ public class GrainController {
 
     @PostMapping
     public ResponseEntity<Grain> createGrain(@RequestBody Grain grain) {
-        // Optionnel : on pourrait forcer l'ordre ou certaines valeurs par défaut ici
         if (grain.getOrderIndex() == null) {
-            grain.setOrderIndex(99); // valeur par défaut
+            grain.setOrderIndex(99);
+        }
+        // Sécurité : learningObjective est NOT NULL en base
+        if (grain.getLearningObjective() == null || grain.getLearningObjective().isBlank()) {
+            grain.setLearningObjective(grain.getDescription() != null ? grain.getDescription() : "Objectif à définir");
         }
         Grain savedGrain = grainRepository.save(grain);
         return ResponseEntity.ok(savedGrain);

@@ -5,6 +5,7 @@ import ma.ensa.microlearning.security.JwtRequestFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -18,7 +19,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -30,7 +31,6 @@ public class SecurityConfig {
     @Autowired
     private UserRepository userRepository;
 
-    // ✅ Ceci empêche Spring de générer son propre mot de passe
     @Bean
     public UserDetailsService userDetailsService() {
         return username -> userRepository.findByEmail(username)
@@ -51,16 +51,26 @@ public class SecurityConfig {
             .headers(headers ->
                 headers.frameOptions(frame -> frame.disable()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                    org.springframework.http.HttpMethod.OPTIONS, "/**"
-                ).permitAll()
-                .requestMatchers(
-                    "/api/auth/**",
-                    "/api/grains",
-                    "/api/grains/**",
-                    "/api/users/**",
-                    "/error"
-                ).permitAll()
+
+                // Preflight OPTIONS : toujours autoriser
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // Auth
+                .requestMatchers("/api/auth/**").permitAll()
+
+                // Grains : toutes les méthodes ouvertes pour la démo
+                .requestMatchers(HttpMethod.GET,    "/api/grains",  "/api/grains/**").permitAll()
+                .requestMatchers(HttpMethod.POST,   "/api/grains").permitAll()
+                .requestMatchers(HttpMethod.PUT,    "/api/grains/**").permitAll()
+                .requestMatchers(HttpMethod.DELETE, "/api/grains/**").permitAll()
+
+                // Users : lecture publique
+                .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll()
+
+                // Divers
+                .requestMatchers("/api/health", "/api/hello", "/error", "/api/generate-progress").permitAll()
+
+                // Tout le reste nécessite un JWT valide
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtRequestFilter,
@@ -78,11 +88,10 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
-        config.setAllowedHeaders(Arrays.asList("*"));
-        config.setAllowedMethods(Arrays.asList(
-            "GET", "POST", "PUT", "DELETE", "OPTIONS"
-        ));
+        config.setAllowedOrigins(List.of("http://localhost:3000"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        config.setExposedHeaders(List.of("Authorization"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;

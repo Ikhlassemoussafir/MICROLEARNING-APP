@@ -3,7 +3,7 @@ import { X, Save, Upload, Link2 } from 'lucide-react';
 
 function CreateGrainModal({ isOpen, onClose, onSave, grainToEdit }) {
   const [formData, setFormData] = useState({
-    title: '', description: '', difficultyLevel: 'DEBUTANT',
+    title: '', description: '', learningObjective: '', difficultyLevel: 'DEBUTANT',
     targetVarkStyle: 'VISUEL', estimatedDuration: 5,
     visualContentUrl: '', auditoryContentUrl: '',
     readingContentUrl: '', kinestheticContentUrl: '',
@@ -14,8 +14,10 @@ function CreateGrainModal({ isOpen, onClose, onSave, grainToEdit }) {
       setFormData({
         title: grainToEdit.title || '',
         description: grainToEdit.description || '',
+        learningObjective: grainToEdit.learningObjective || '',
         difficultyLevel: grainToEdit.difficultyLevel || 'DEBUTANT',
         targetVarkStyle: grainToEdit.targetVarkStyle || 'VISUEL',
+        estimatedDuration: grainToEdit.estimatedDuration || 5,
         visualContentUrl: grainToEdit.visualContentUrl || '',
         auditoryContentUrl: grainToEdit.auditoryContentUrl || '',
         readingContentUrl: grainToEdit.readingContentUrl || '',
@@ -25,7 +27,7 @@ function CreateGrainModal({ isOpen, onClose, onSave, grainToEdit }) {
         mindmapUrls: grainToEdit.mindmapUrls ? grainToEdit.mindmapUrls.join('\n') : '',
       });
     } else {
-      setFormData({ title:'', description:'', difficultyLevel:'DEBUTANT', targetVarkStyle:'VISUEL', estimatedDuration:5, visualContentUrl:'', auditoryContentUrl:'', readingContentUrl:'', kinestheticContentUrl:'', videoUrls:'', slideUrls:'', mindmapUrls:'' });
+      setFormData({ title:'', description:'', learningObjective:'', difficultyLevel:'DEBUTANT', targetVarkStyle:'VISUEL', estimatedDuration:5, visualContentUrl:'', auditoryContentUrl:'', readingContentUrl:'', kinestheticContentUrl:'', videoUrls:'', slideUrls:'', mindmapUrls:'' });
     }
   }, [grainToEdit, isOpen]);
 
@@ -87,6 +89,15 @@ function CreateGrainModal({ isOpen, onClose, onSave, grainToEdit }) {
               onChange={e => set('description', e.target.value)}
               placeholder="Objectifs et contenu du grain..."
               className="input-field resize-none" />
+          </div>
+
+          {/* Learning Objective */}
+          <div>
+            <label className="label-field">Objectif pédagogique 🎯</label>
+            <input type="text" required value={formData.learningObjective}
+              onChange={e => set('learningObjective', e.target.value)}
+              placeholder="Ex: L'étudiant sera capable de comprendre les JOINs SQL"
+              className="input-field" />
           </div>
 
           {/* Level + VARK + Duration */}

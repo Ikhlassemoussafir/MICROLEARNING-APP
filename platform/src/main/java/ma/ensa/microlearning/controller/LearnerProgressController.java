@@ -10,7 +10,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/progress")
-@CrossOrigin(origins = "*") // À configurer plus strictement en production
+
 public class LearnerProgressController {
 
     @Autowired
