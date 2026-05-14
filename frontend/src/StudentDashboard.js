@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import GrainDetailSimple from './GrainDetailSimple';
 import { Book, Award, Target, Clock, CheckCircle, Play, Brain, Lightbulb, Trophy, Zap, Activity } from 'lucide-react';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, AreaChart, Area, XAxis, Tooltip } from 'recharts';
-import { getUser, getAllGrains, getUserProgress, getRecommendations, getUserBadges } from './services/api';
+import { getUser, getAllGrains, getUserProgress, getRecommendations, getUserBadges, saveVarkProfile, getVarkProfile } from './services/api';
 
 /* ── VARK TEST ── */
 function VARKTest({ onComplete }) {
@@ -147,14 +147,27 @@ function StudentDashboard({ userData }) {
         getUserBadges(userId).catch(() => ({ data: [] }))
       ]);
 
-      // Récupérer le profil VARK depuis les données utilisateur
-      if (uR.data?.varkProfile) {
-        setVARKProfile({
-          visual: uR.data.varkProfile.visualScore || 0,
-          auditory: uR.data.varkProfile.auditoryScore || 0,
-          reading: uR.data.varkProfile.readingScore || 0,
-          kinesthetic: uR.data.varkProfile.kinestheticScore || 0
-        });
+      // 1. Charger d'abord le profil VARK depuis la BD
+      try {
+        const varkR = await getVarkProfile(userId);
+        if (varkR.data && varkR.status === 200) {
+          setVARKProfile({
+            visual: varkR.data.visualScore || 0,
+            auditory: varkR.data.auditoryScore || 0,
+            reading: varkR.data.readingScore || 0,
+            kinesthetic: varkR.data.kinestheticScore || 0
+          });
+        }
+      } catch (e) {
+        // Pas de profil VARK en BD — fallback sur les données utilisateur
+        if (uR.data?.varkProfile) {
+          setVARKProfile({
+            visual: uR.data.varkProfile.visualScore || 0,
+            auditory: uR.data.varkProfile.auditoryScore || 0,
+            reading: uR.data.varkProfile.readingScore || 0,
+            kinesthetic: uR.data.varkProfile.kinestheticScore || 0
+          });
+        }
       }
 
       setGrains(gR.data || []);
@@ -197,7 +210,20 @@ function StudentDashboard({ userData }) {
     sorted.sort((a,b)=>{const am=(a.targetVarkStyle||'').toUpperCase()===db,bm=(b.targetVarkStyle||'').toUpperCase()===db;return am&&!bm?-1:!am&&bm?1:(a.grainId||0)-(b.grainId||0);});
   }
 
-  if(showVARK) return <VARKTest onComplete={p=>{setVARKProfile(p);setShowVARK(false);}}/>;
+  if(showVARK) return <VARKTest onComplete={async (p) => {
+    setVARKProfile(p);
+    setShowVARK(false);
+    // Sauvegarder en base de données
+    const userId = localStorage.getItem('userId');
+    if (userId) {
+      try {
+        await saveVarkProfile(userId, p);
+        console.log('✅ Profil VARK sauvegardé en BD');
+      } catch (e) {
+        console.warn('Erreur sauvegarde VARK:', e.message);
+      }
+    }
+  }}/>;
   if(loading) return <div className="bg-page min-h-screen flex items-center justify-center"><div className="w-12 h-12 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"/></div>;
   if(selectedGrain) return <GrainDetailSimple grain={selectedGrain} varkProfile={varkProfile} onClose={()=>setSelectedGrain(null)} onComplete={()=>setSelectedGrain(null)}/>;
 

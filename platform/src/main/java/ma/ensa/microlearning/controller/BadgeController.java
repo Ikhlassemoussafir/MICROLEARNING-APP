@@ -25,4 +25,17 @@ public class BadgeController {
     public ResponseEntity<Badge> awardBadge(@RequestBody Badge badge) {
         return ResponseEntity.ok(badgeService.awardBadge(badge));
     }
+
+    @PostMapping("/check")
+    public ResponseEntity<Void> checkBadges(@RequestBody java.util.Map<String, Object> data) {
+        try {
+            Long userId = Long.valueOf(data.get("userId").toString());
+            ma.ensa.microlearning.entity.User user = new ma.ensa.microlearning.entity.User();
+            user.setUserId(userId);
+            badgeService.evaluateBadgesForUser(user);
+        } catch (Exception e) {
+            // silencieux — ne pas bloquer le frontend
+        }
+        return ResponseEntity.ok().build();
+    }
 }

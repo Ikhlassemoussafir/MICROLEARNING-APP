@@ -67,6 +67,13 @@ public class SecurityConfig {
                 // Users : lecture publique
                 .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll()
 
+                // IA Ollama : JWT envoyé par axios mais route publique pour éviter les blocages // ✅ AJOUTÉ
+                .requestMatchers(HttpMethod.POST, "/api/ai/**").permitAll()       // ✅ AJOUTÉ
+                .requestMatchers(HttpMethod.OPTIONS, "/api/ai/**").permitAll()    // ✅ AJOUTÉ
+
+                // Profils VARK : sauvegarde et lecture
+                .requestMatchers("/api/vark-profiles/**").permitAll()
+
                 // Divers
                 .requestMatchers("/api/health", "/api/hello", "/error", "/api/generate-progress").permitAll()
 

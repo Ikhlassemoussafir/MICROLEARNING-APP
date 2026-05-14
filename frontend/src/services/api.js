@@ -22,14 +22,18 @@ axios.interceptors.request.use(
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Ne pas rediriger si l'erreur provient de la tentative de connexion ou d'inscription
     const url = error.config?.url || '';
-    if (url.includes('/auth/login') || url.includes('/auth/register')) {
+    // Ne pas rediriger pour les routes auth, IA, ou badges
+    if (
+      url.includes('/auth/login') ||
+      url.includes('/auth/register') ||
+      url.includes('/api/ai/') ||
+      url.includes('/badges/check')
+    ) {
       return Promise.reject(error);
     }
 
     if (error.response?.status === 401 || error.response?.status === 403) {
-      // Nettoyer le stockage et rediriger vers la page de connexion
       localStorage.removeItem('token');
       localStorage.removeItem('userId');
       localStorage.removeItem('userRole');
@@ -104,3 +108,12 @@ export const generateSupplementaryQuestions = (data) =>
   axios.post(`${API_BASE_URL}/ai/questions-supplementaires`, data);
 export const generateAlternativeGrain = (data) =>
   axios.post(`${API_BASE_URL}/ai/grain-alternatif`, data);
+
+// ==========================================
+// VARK PROFILES
+// ==========================================
+export const getVarkProfile = (userId) =>
+  axios.get(`${API_BASE_URL}/vark-profiles/user/${userId}`);
+export const saveVarkProfile = (userId, scores) =>
+  axios.post(`${API_BASE_URL}/vark-profiles/user/${userId}`, scores);
+

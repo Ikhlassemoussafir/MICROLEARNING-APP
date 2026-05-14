@@ -23,17 +23,35 @@ public class LearnerProgressService {
     }
 
     public LearnerProgress saveProgress(LearnerProgress progress) {
-        progress.setLastAccessedAt(LocalDateTime.now());
-        if (progress.getStartedAt() == null) {
-            progress.setStartedAt(LocalDateTime.now());
+        Long userId = progress.getUser().getUserId();
+        Long grainId = progress.getGrain().getGrainId();
+
+        Optional<LearnerProgress> existing = learnerProgressRepository
+            .findByUserUserIdAndGrainGrainId(userId, grainId);
+
+        if (existing.isPresent()) {
+            // UPDATE — enregistrement existant trouvé
+            LearnerProgress lp = existing.get();
+            lp.setStatus(progress.getStatus());
+            if (progress.getBestScore() != null &&
+                (lp.getBestScore() == null || progress.getBestScore() > lp.getBestScore())) {
+                lp.setBestScore(progress.getBestScore());
+            }
+            lp.setAttemptsCount((lp.getAttemptsCount() == null ? 0 : lp.getAttemptsCount()) + 1);
+            lp.setTimeSpent((lp.getTimeSpent() == null ? 0 : lp.getTimeSpent()) + (progress.getTimeSpent() == null ? 0 : progress.getTimeSpent()));
+            lp.setLastAccessedAt(LocalDateTime.now());
+            if (progress.getCompletedAt() != null) lp.setCompletedAt(progress.getCompletedAt());
+            LearnerProgress saved = learnerProgressRepository.save(lp);
+            if (saved.getUser() != null) badgeService.evaluateBadgesForUser(saved.getUser());
+            return saved;
+        } else {
+            // INSERT — premier enregistrement pour ce (userId, grainId)
+            progress.setLastAccessedAt(LocalDateTime.now());
+            if (progress.getStartedAt() == null) progress.setStartedAt(LocalDateTime.now());
+            LearnerProgress saved = learnerProgressRepository.save(progress);
+            if (saved.getUser() != null) badgeService.evaluateBadgesForUser(saved.getUser());
+            return saved;
         }
-        LearnerProgress savedProgress = learnerProgressRepository.save(progress);
-        
-        if (savedProgress.getUser() != null) {
-            badgeService.evaluateBadgesForUser(savedProgress.getUser());
-        }
-        
-        return savedProgress;
     }
 
     public Optional<LearnerProgress> getProgressByUserAndGrain(Long userId, Long grainId) {
