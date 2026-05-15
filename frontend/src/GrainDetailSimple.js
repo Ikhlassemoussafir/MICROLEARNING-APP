@@ -17,9 +17,9 @@ const PASS_THRESHOLD = 70;
 const AI_TIMEOUT_MS = 40_000;
 
 const DIFFICULTY_CONFIG = {
-  easy:   { label: 'Facile',        color: 'var(--accent-emerald)', bg: 'rgba(16,185,129,0.12)' },
-  medium: { label: 'Intermédiaire', color: '#f59e0b',               bg: 'rgba(245,158,11,0.12)' },
-  hard:   { label: 'Difficile',     color: 'var(--accent-pink)',    bg: 'rgba(236,72,153,0.12)' },
+  easy: { label: 'Facile', color: 'var(--accent-emerald)', bg: 'rgba(16,185,129,0.12)' },
+  medium: { label: 'Intermédiaire', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+  hard: { label: 'Difficile', color: 'var(--accent-pink)', bg: 'rgba(236,72,153,0.12)' },
 };
 
 function ResourceViewer({ url, type }) {
@@ -110,8 +110,8 @@ function ResourceTabs({ grain, initialFormat }) {
               style={activeIdx === i
                 ? { background: `${tab.color}22`, borderColor: tab.color, color: tab.color }
                 : { background: 'var(--bg-card)', borderColor: 'var(--border-sub)', color: 'var(--text-muted)' }}>
-              {tab.type === 'video'   && <><Play size={10} />     Vidéo {i + 1}</>}
-              {tab.type === 'slide'   && <><FileText size={10} />  Slide {i + 1}</>}
+              {tab.type === 'video' && <><Play size={10} />     Vidéo {i + 1}</>}
+              {tab.type === 'slide' && <><FileText size={10} />  Slide {i + 1}</>}
               {tab.type === 'mindmap' && <><Map size={10} />       Map {i + 1}</>}
             </button>
           ))}
@@ -179,24 +179,24 @@ function DifficultyBadge({ difficulty }) {
 
 function QuizOption({ letter, text, correct, feedback, selected, onClick }) {
   let borderColor = 'var(--border-sub)';
-  let bgColor     = 'var(--bg-card)';
-  let textColor   = 'var(--text-secondary)';
-  let badgeStyle  = { background: 'rgba(41,182,210,0.12)', color: 'var(--accent-purple)' };
+  let bgColor = 'var(--bg-card)';
+  let textColor = 'var(--text-secondary)';
+  let badgeStyle = { background: 'rgba(41,182,210,0.12)', color: 'var(--accent-purple)' };
 
   if (feedback === 'correct' && correct) {
     borderColor = 'var(--accent-emerald)';
-    bgColor     = 'rgba(16,185,129,0.08)';
-    textColor   = 'var(--text-primary)';
-    badgeStyle  = { background: 'rgba(16,185,129,0.2)', color: 'var(--accent-emerald)' };
+    bgColor = 'rgba(16,185,129,0.08)';
+    textColor = 'var(--text-primary)';
+    badgeStyle = { background: 'rgba(16,185,129,0.2)', color: 'var(--accent-emerald)' };
   } else if (feedback === 'incorrect' && selected) {
     borderColor = 'var(--accent-pink)';
-    bgColor     = 'rgba(236,72,153,0.08)';
-    textColor   = 'var(--text-primary)';
-    badgeStyle  = { background: 'rgba(236,72,153,0.2)', color: 'var(--accent-pink)' };
+    bgColor = 'rgba(236,72,153,0.08)';
+    textColor = 'var(--text-primary)';
+    badgeStyle = { background: 'rgba(236,72,153,0.2)', color: 'var(--accent-pink)' };
   } else if (feedback === 'incorrect' && correct) {
     borderColor = 'var(--accent-emerald)';
-    bgColor     = 'rgba(16,185,129,0.05)';
-    badgeStyle  = { background: 'rgba(16,185,129,0.15)', color: 'var(--accent-emerald)' };
+    bgColor = 'rgba(16,185,129,0.05)';
+    badgeStyle = { background: 'rgba(16,185,129,0.15)', color: 'var(--accent-emerald)' };
   }
 
   return (
@@ -233,9 +233,9 @@ function buildFallbackQuestions(grainTitle) {
       difficulty: 'easy',
       options: [
         { id: 'a', text: 'Gérer et manipuler les données de manière structurée', correct: true },
-        { id: 'b', text: 'Créer des interfaces graphiques utilisateur',           correct: false },
-        { id: 'c', text: 'Gérer la mémoire vive du système',                      correct: false },
-        { id: 'd', text: 'Configurer les paramètres réseau',                       correct: false },
+        { id: 'b', text: 'Créer des interfaces graphiques utilisateur', correct: false },
+        { id: 'c', text: 'Gérer la mémoire vive du système', correct: false },
+        { id: 'd', text: 'Configurer les paramètres réseau', correct: false },
       ],
       explanation: `Ce concept est fondamental dans "${grainTitle}" pour structurer et manipuler les données.`
     },
@@ -243,10 +243,10 @@ function buildFallbackQuestions(grainTitle) {
       question: `Dans le contexte de "${grainTitle}", quelle syntaxe SQL est correcte ?`,
       difficulty: 'medium',
       options: [
-        { id: 'a', text: 'SELECT * WHERE FROM table',          correct: false },
-        { id: 'b', text: 'FROM table SELECT *',                correct: false },
+        { id: 'a', text: 'SELECT * WHERE FROM table', correct: false },
+        { id: 'b', text: 'FROM table SELECT *', correct: false },
         { id: 'c', text: 'SELECT * FROM table WHERE condition', correct: true },
-        { id: 'd', text: 'TABLE SELECT * FROM condition',       correct: false },
+        { id: 'd', text: 'TABLE SELECT * FROM condition', correct: false },
       ],
       explanation: "La syntaxe SQL standard suit toujours l'ordre SELECT ... FROM ... WHERE ..."
     },
@@ -254,10 +254,10 @@ function buildFallbackQuestions(grainTitle) {
       question: `Quelle est la bonne pratique à retenir de "${grainTitle}" ?`,
       difficulty: 'medium',
       options: [
-        { id: 'a', text: "Ignorer les contraintes d'intégrité",       correct: false },
+        { id: 'a', text: "Ignorer les contraintes d'intégrité", correct: false },
         { id: 'b', text: 'Toujours vérifier la cohérence des données', correct: true },
-        { id: 'c', text: 'Utiliser des noms de colonnes génériques',   correct: false },
-        { id: 'd', text: 'Éviter les index pour simplifier',           correct: false },
+        { id: 'c', text: 'Utiliser des noms de colonnes génériques', correct: false },
+        { id: 'd', text: 'Éviter les index pour simplifier', correct: false },
       ],
       explanation: 'La cohérence des données est une règle fondamentale en bases de données relationnelles.'
     }
@@ -267,31 +267,29 @@ function buildFallbackQuestions(grainTitle) {
 function GrainDetailSimple({ grain, varkProfile, onClose, onComplete }) {
   const [phase, setPhase] = useState('content');
   const [quizAnswers, setQuizAnswers] = useState([]);
-  const [aiAnswers,   setAiAnswers]   = useState([]);
+  const [aiAnswers, setAiAnswers] = useState([]);
   const [currentFeedback, setCurrentFeedback] = useState(null);
   const [aiQuestions, setAiQuestions] = useState([]);
-  const [loadingAI,   setLoadingAI]   = useState(false);
-  const [aiError,     setAiError]     = useState(false);
-  const [score,     setScore]     = useState(0);
-  const [h5pScore,  setH5pScore]  = useState(null);
-
-  // Suivi de la durée réelle du quiz
+  const [loadingAI, setLoadingAI] = useState(false);
+  const [aiError, setAiError] = useState(false);
+  const [score, setScore] = useState(0);
+  const [h5pScore, setH5pScore] = useState(null);
   const quizStartRef = useRef(null);
 
   const dominant = Object.entries({
-    VISUEL:        varkProfile?.visual       || 0,
-    AUDITIF:       varkProfile?.auditory     || 0,
-    LECTURE:       varkProfile?.reading      || 0,
-    KINESTHESIQUE: varkProfile?.kinesthetic  || 0,
+    VISUEL: varkProfile?.visual || 0,
+    AUDITIF: varkProfile?.auditory || 0,
+    LECTURE: varkProfile?.reading || 0,
+    KINESTHESIQUE: varkProfile?.kinesthetic || 0,
   }).sort((a, b) => b[1] - a[1])[0][0];
 
   const levelGrad = {
-    DEBUTANT:      'from-emerald-600 to-teal-600',
+    DEBUTANT: 'from-emerald-600 to-teal-600',
     INTERMEDIAIRE: 'from-amber-500 to-orange-600',
-    AVANCE:        'from-red-500 to-pink-600',
+    AVANCE: 'from-red-500 to-pink-600',
   }[grain.difficultyLevel] || 'from-teal-600 to-cyan-600';
 
-  const grainId      = grain.grainId;
+  const grainId = grain.grainId;
   const allQuestions = (quizData[grainId] || quizData[1]).h5pQuestions;
 
   const h5pQuestions = useMemo(
@@ -321,13 +319,13 @@ function GrainDetailSimple({ grain, varkProfile, onClose, onComplete }) {
   };
 
   const finishAI = async (currentQuizAnswers, currentAiAnswers, currentAiQuestions) => {
-    const answersQ    = currentQuizAnswers  || quizAnswers;
-    const answersAI   = currentAiAnswers    || aiAnswers;
-    const questionsAI = currentAiQuestions  || aiQuestions;
+    const answersQ = currentQuizAnswers || quizAnswers;
+    const answersAI = currentAiAnswers || aiAnswers;
+    const questionsAI = currentAiQuestions || aiQuestions;
 
-    const h5pOk     = answersQ.filter(a => a.correct).length;
-    const aiOk      = answersAI.filter(a => a.correct).length;
-    const total     = h5pQuestions.length + questionsAI.length;
+    const h5pOk = answersQ.filter(a => a.correct).length;
+    const aiOk = answersAI.filter(a => a.correct).length;
+    const total = h5pQuestions.length + questionsAI.length;
     const finalScore = total > 0 ? Math.round(((h5pOk + aiOk) / total) * 100) : 0;
 
     setScore(finalScore);
@@ -335,30 +333,29 @@ function GrainDetailSimple({ grain, varkProfile, onClose, onComplete }) {
     const userId = localStorage.getItem('userId');
     if (userId) {
       try {
+        const now = Date.now();
+        const startedMs = quizStartRef.current || (now - 5 * 60_000);
+        const durationSec = Math.round((now - startedMs) / 1000);
         await submitQuiz({
-          user:        { userId: parseInt(userId) },
-          grain:       { grainId: grain.grainId },
-          score:       finalScore,
+          user: { userId: parseInt(userId) },
+          grain: { grainId: grain.grainId },
+          score: finalScore,
           answersJson: JSON.stringify([...answersQ, ...answersAI]),
-          const now = Date.now();
-          const startedMs = quizStartRef.current || (now - 5 * 60_000);
-          const durationSec = Math.round((now - startedMs) / 1000);
-          // duration remplacé par durationSec
-          // eslint-disable-next-line
-          startedAt:   new Date(Date.now() - 5 * 60_000).toISOString(),
-          completedAt: new Date().toISOString(),
+          duration: durationSec,
+          startedAt: new Date(startedMs).toISOString(),
+          completedAt: new Date(now).toISOString(),
         });
         await saveProgress({
-          user:         { userId: parseInt(userId) },
-          grain:        { grainId: grain.grainId },
-          status:       finalScore >= PASS_THRESHOLD ? 'COMPLETE' : 'EN_COURS',
-          bestScore:    finalScore,
+          user: { userId: parseInt(userId) },
+          grain: { grainId: grain.grainId },
+          status: finalScore >= PASS_THRESHOLD ? 'COMPLETE' : 'EN_COURS',
+          bestScore: finalScore,
           attemptsCount: 1,
-          timeSpent:    300,
-          completedAt:  finalScore >= PASS_THRESHOLD ? new Date().toISOString() : null,
+          timeSpent: durationSec,
+          completedAt: finalScore >= PASS_THRESHOLD ? new Date(now).toISOString() : null,
         });
         await generateRecommendation(parseInt(userId), grain.grainId, finalScore);
-        await checkBadges({ userId: parseInt(userId), grainId: grain.grainId, score: finalScore }).catch(() => {});
+        await checkBadges({ userId: parseInt(userId), grainId: grain.grainId, score: finalScore }).catch(() => { });
       } catch (err) {
         console.error('Erreur sauvegarde quiz:', err);
       }
@@ -368,7 +365,7 @@ function GrainDetailSimple({ grain, varkProfile, onClose, onComplete }) {
 
   const loadAI = async (currentAnswers) => {
     const answers = currentAnswers || quizAnswers;
-    const h5pOk   = answers.filter(a => a.correct).length;
+    const h5pOk = answers.filter(a => a.correct).length;
     const intermediateScore = Math.round((h5pOk / h5pQuestions.length) * 100);
     setH5pScore(intermediateScore);
 
@@ -379,7 +376,7 @@ function GrainDetailSimple({ grain, varkProfile, onClose, onComplete }) {
       return;
     }
 
-    const errors     = answers.filter(a => !a.correct);
+    const errors = answers.filter(a => !a.correct);
     const errorTexts = errors
       .map(a => h5pQuestions.find(q => q.id === a.questionId)?.question || '')
       .filter(Boolean);
@@ -392,12 +389,12 @@ function GrainDetailSimple({ grain, varkProfile, onClose, onComplete }) {
         setTimeout(() => reject(new Error('timeout')), AI_TIMEOUT_MS)
       );
       const apiPromise = generateSupplementaryQuestions({
-        grainTitle:   grain.title,
+        grainTitle: grain.title,
         grainContent: grain.summary || grain.description || '',
-        userErrors:   errorTexts,
-        varkStyle:    dominant,
+        userErrors: errorTexts,
+        varkStyle: dominant,
       });
-      const res       = await Promise.race([apiPromise, timeoutPromise]);
+      const res = await Promise.race([apiPromise, timeoutPromise]);
       const questions = res.data?.questions || [];
       setAiQuestions(questions.length > 0 ? questions : buildFallbackQuestions(grain.title));
       if (questions.length === 0) setAiError(true);
@@ -420,7 +417,7 @@ function GrainDetailSimple({ grain, varkProfile, onClose, onComplete }) {
     setScore(0);
     setH5pScore(null);
     setPhase('quiz-h5p-mount');
-    setTimeout(() => setPhase('quiz-h5p'), 0);
+    setTimeout(() => { quizStartRef.current = Date.now(); setPhase('quiz-h5p'); }, 0);
   };
 
   const Modal = ({ children, wide }) => (
@@ -493,9 +490,9 @@ function GrainDetailSimple({ grain, varkProfile, onClose, onComplete }) {
   );
 
   if (phase === 'quiz-h5p') {
-    const idx  = quizAnswers.length;
+    const idx = quizAnswers.length;
     const done = idx >= h5pQuestions.length;
-    const q    = h5pQuestions[idx];
+    const q = h5pQuestions[idx];
 
     return (
       <Modal>
@@ -580,9 +577,9 @@ function GrainDetailSimple({ grain, varkProfile, onClose, onComplete }) {
       </Modal>
     );
 
-    const aiIdx  = aiAnswers.length;
+    const aiIdx = aiAnswers.length;
     const aiDone = aiIdx >= aiQuestions.length || aiQuestions.length === 0;
-    const aiQ    = aiQuestions[aiIdx];
+    const aiQ = aiQuestions[aiIdx];
 
     return (
       <Modal>
@@ -640,9 +637,9 @@ function GrainDetailSimple({ grain, varkProfile, onClose, onComplete }) {
   }
 
   if (phase === 'results') {
-    const passed     = score >= PASS_THRESHOLD;
+    const passed = score >= PASS_THRESHOLD;
     const h5pCorrect = quizAnswers.filter(a => a.correct).length;
-    const aiCorrect  = aiAnswers.filter(a => a.correct).length;
+    const aiCorrect = aiAnswers.filter(a => a.correct).length;
 
     return (
       <Modal>
