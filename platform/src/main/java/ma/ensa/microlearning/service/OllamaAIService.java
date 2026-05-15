@@ -8,8 +8,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.time.Instant;
 import java.util.*;
 
 @Service
@@ -17,10 +19,30 @@ public class OllamaAIService {
 
     private static final Logger logger = LoggerFactory.getLogger(OllamaAIService.class);
 
-    private static final int    CONNECT_TIMEOUT_MS  = 5_000;
-    private static final int    READ_TIMEOUT_MS     = 120_000;
-    private static final double TEMPERATURE         = 0.3;
-    private static final int    NUM_PREDICT         = 1500;
+    private static final int    CONNECT_TIMEOUT_MS = 5_000;
+    private static final int    READ_TIMEOUT_MS    = 120_000;
+    private static final double TEMPERATURE        = 0.7;
+    private static final int    NUM_PREDICT        = 2000;
+
+    private static final List<String> SCENARIO_TYPES = List.of(
+        "une application e-commerce (commandes, produits, clients)",
+        "un système de gestion scolaire (étudiants, cours, notes)",
+        "une bibliothèque numérique (livres, auteurs, emprunts)",
+        "un réseau social (utilisateurs, publications, commentaires)",
+        "un hôpital (patients, médecins, consultations, prescriptions)",
+        "une agence de voyage (voyages, réservations, destinations)",
+        "un entrepôt logistique (stocks, fournisseurs, livraisons)",
+        "une banque (comptes, transactions, clients, agences)"
+    );
+
+    private static final List<String> QUESTION_STARTERS = List.of(
+        "Dans le contexte de %s, quelle requête SQL permet de",
+        "Un développeur travaillant sur %s doit",
+        "Analysez ce scénario lié à %s : comment",
+        "Pour une application %s, identifiez",
+        "Suite à un bug dans %s, quel est",
+        "En concevant %s, quelle est la meilleure façon de"
+    );
 
     @Value("${ollama.api.url:http://localhost:11434/api/generate}")
     private String ollamaApiUrl;
@@ -28,105 +50,88 @@ public class OllamaAIService {
     @Value("${ollama.model:llama3.2}")
     private String modelName;
 
-    private final RestTemplate  restTemplate;
-    private final ObjectMapper  objectMapper;
+    private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
+    private final Random       random;
 
-    // ══════════════════════════════════════════════════════
-    //  CONSTRUCTEUR
-    // ══════════════════════════════════════════════════════
     public OllamaAIService() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(CONNECT_TIMEOUT_MS);
         factory.setReadTimeout(READ_TIMEOUT_MS);
         this.restTemplate = new RestTemplate(factory);
         this.objectMapper = new ObjectMapper();
+        this.random       = new Random();
     }
 
-    // ══════════════════════════════════════════════════════
-    //  GÉNÉRATION DE QUESTIONS DE REMÉDIATION
-    // ══════════════════════════════════════════════════════
-
-    /**
-     * Génère 3 questions QCM de remédiation adaptées au profil VARK de l'apprenant.
-     * En cas d'échec, retourne un contenu de fallback prédéfini.
-     */
     public AIGeneratedQuestions generateSupplementaryQuestions(
             String grainTitle,
             String grainContent,
             List<String> userErrors,
             String varkStyle) {
 
-        logger.info("Génération questions remédiation — Grain : [{}] | Style VARK : [{}]", grainTitle, varkStyle);
+        logger.info("[IA] Génération questions remédiation — Grain : [{}] | VARK : [{}] | Erreurs : {}",
+                grainTitle, varkStyle, userErrors != null ? userErrors.size() : 0);
 
         try {
-            String prompt       = buildSupplementaryQuestionsPrompt(grainTitle, grainContent, userErrors, varkStyle);
-            String responseText = cleanJsonResponse(callOllamaAPI(prompt));
-            AIGeneratedQuestions result = objectMapper.readValue(responseText, AIGeneratedQuestions.class);
-            logger.info("Questions générées avec succès pour le grain : [{}]", grainTitle);
+            String prompt      = buildSupplementaryQuestionsPrompt(grainTitle, grainContent, userErrors, varkStyle);
+            String rawResponse = callOllamaAPI(prompt);
+            String cleanedJson = cleanJsonResponse(rawResponse);
+
+            AIGeneratedQuestions result = parseQuestionsResponse(cleanedJson, grainTitle);
+            logger.info("[IA] {} questions générées pour [{}]", result.getQuestions().size(), grainTitle);
             return result;
 
         } catch (Exception e) {
-            logger.error("Échec génération questions Ollama pour [{}] : {}", grainTitle, e.getMessage());
+            logger.error("[IA] Échec génération questions pour [{}] : {}", grainTitle, e.getMessage());
             return createFallbackQuestions(grainTitle);
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //  GÉNÉRATION DE GRAIN ALTERNATIF
-    // ══════════════════════════════════════════════════════
-
-    /**
-     * Génère une explication alternative du même grain, adaptée au style VARK dominant.
-     * En cas d'échec, retourne un contenu de fallback prédéfini.
-     */
     public AlternativeGrain generateAlternativeGrain(
             String originalTitle,
             String originalObjective,
             List<String> userErrors,
             String varkStyle) {
 
-        logger.info("Génération grain alternatif — Grain : [{}] | Style VARK : [{}]", originalTitle, varkStyle);
+        logger.info("[IA] Génération grain alternatif — Grain : [{}] | VARK : [{}]", originalTitle, varkStyle);
 
         try {
-            String prompt       = buildAlternativeGrainPrompt(originalTitle, originalObjective, userErrors, varkStyle);
-            String responseText = cleanJsonResponse(callOllamaAPI(prompt));
-            AlternativeGrain result = objectMapper.readValue(responseText, AlternativeGrain.class);
-            logger.info("Grain alternatif généré avec succès pour : [{}]", originalTitle);
+            String prompt      = buildAlternativeGrainPrompt(originalTitle, originalObjective, userErrors, varkStyle);
+            String rawResponse = callOllamaAPI(prompt);
+            String cleanedJson = cleanJsonResponse(rawResponse);
+
+            AlternativeGrain result = objectMapper.readValue(cleanedJson, AlternativeGrain.class);
+            logger.info("[IA] Grain alternatif généré pour [{}]", originalTitle);
             return result;
 
         } catch (Exception e) {
-            logger.error("Échec génération grain alternatif Ollama pour [{}] : {}", originalTitle, e.getMessage());
+            logger.error("[IA] Échec génération grain alternatif pour [{}] : {}", originalTitle, e.getMessage());
             return createFallbackAlternativeGrain(originalTitle, varkStyle);
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //  APPEL API OLLAMA
-    // ══════════════════════════════════════════════════════
-
     @SuppressWarnings("unchecked")
     private String callOllamaAPI(String prompt) throws Exception {
-
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         Map<String, Object> requestBody = new LinkedHashMap<>();
-        requestBody.put("model",   modelName);
-        requestBody.put("prompt",  prompt);
-        requestBody.put("stream",  false);
-        requestBody.put("format",  "json");
+        requestBody.put("model",  modelName);
+        requestBody.put("prompt", prompt);
+        requestBody.put("stream", false);
+        requestBody.put("format", "json");
         requestBody.put("options", Map.of(
                 "temperature", TEMPERATURE,
-                "num_predict", NUM_PREDICT
+                "num_predict", NUM_PREDICT,
+                "seed",        (int)(System.nanoTime() % 100_000)
         ));
 
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-
         ResponseEntity<String> response =
                 restTemplate.postForEntity(ollamaApiUrl, request, String.class);
 
         if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-            throw new RuntimeException("Ollama a retourné un statut inattendu : " + response.getStatusCode());
+            throw new RuntimeException("Ollama statut inattendu : " + response.getStatusCode());
         }
 
         Map<String, Object> responseMap = objectMapper.readValue(response.getBody(), Map.class);
@@ -139,44 +144,59 @@ public class OllamaAIService {
         return responseText;
     }
 
-    // ══════════════════════════════════════════════════════
-    //  CONSTRUCTION DES PROMPTS
-    // ══════════════════════════════════════════════════════
-
     private String buildSupplementaryQuestionsPrompt(
             String grainTitle,
             String grainContent,
             List<String> userErrors,
             String varkStyle) {
 
-        String errorsStr  = (userErrors != null && !userErrors.isEmpty())
-                ? String.join(", ", userErrors)
-                : "concepts généraux du grain";
-
-        String styleHint  = getStyleHint(varkStyle);
+        String errorsStr = formatErrors(userErrors);
+        String styleHint = getStyleHint(varkStyle);
+        String seed      = String.valueOf(Instant.now().toEpochMilli() % 9999);
+        String scenario  = pickRandom(SCENARIO_TYPES);
+        String starter   = String.format(pickRandom(QUESTION_STARTERS), scenario);
 
         return String.format(
-                "Tu es un expert pédagogique en bases de données SQL. "
-                + "Génère exactement 3 questions QCM de remédiation en français.\n\n"
-                + "Grain : %s\n"
-                + "Erreurs de l'étudiant : %s\n"
-                + "Style d'apprentissage : %s — %s\n\n"
-                + "RÈGLES STRICTES :\n"
-                + "1. Réponds UNIQUEMENT avec un JSON valide, aucun texte avant ou après.\n"
-                + "2. Chaque question doit cibler directement une erreur commise.\n"
-                + "3. L'explication doit être adaptée au style %s.\n\n"
-                + "FORMAT JSON OBLIGATOIRE :\n"
-                + "{\"questions\": [{"
-                + "\"question\": \"Question en français\","
-                + "\"options\": ["
-                + "{\"id\": \"a\", \"text\": \"Option A\", \"correct\": false},"
-                + "{\"id\": \"b\", \"text\": \"Option B\", \"correct\": true},"
-                + "{\"id\": \"c\", \"text\": \"Option C\", \"correct\": false},"
-                + "{\"id\": \"d\", \"text\": \"Option D\", \"correct\": false}"
-                + "],"
-                + "\"explanation\": \"Explication claire en français\""
-                + "}]}",
-                grainTitle, errorsStr, varkStyle, styleHint, varkStyle
+            "Tu es un expert pédagogique en bases de données SQL. "
+            + "Génère exactement 3 questions QCM de remédiation DIFFÉRENTES et VARIÉES en français.\n\n"
+            + "SEED_GÉNÉRATION : %s (utilise ce seed pour générer des questions totalement uniques)\n\n"
+            + "CONTEXTE DU GRAIN : %s\n"
+            + "CONTENU : %s\n"
+            + "ERREURS DE L'ÉTUDIANT : %s\n"
+            + "STYLE D'APPRENTISSAGE : %s — %s\n"
+            + "SCÉNARIO À UTILISER : %s\n"
+            + "FORMULATION D'INTRO SUGGÉRÉE : \"%s...\"\n\n"
+            + "DISTRIBUTION DE DIFFICULTÉ OBLIGATOIRE :\n"
+            + "  - Question 1 : niveau 'easy'\n"
+            + "  - Question 2 : niveau 'medium'\n"
+            + "  - Question 3 : niveau 'hard'\n\n"
+            + "RÈGLES STRICTES :\n"
+            + "1. Réponds UNIQUEMENT avec un JSON valide, aucun texte avant ou après.\n"
+            + "2. Chaque question DOIT cibler directement une erreur commise par l'étudiant.\n"
+            + "3. Les 3 questions doivent être DIFFÉRENTES dans leur formulation et leur concept.\n"
+            + "4. Varie les types de questions : définition, identification d'erreur, écriture de requête.\n"
+            + "5. Les fausses réponses doivent être plausibles mais clairement incorrectes pour un expert.\n"
+            + "6. L'explication doit être adaptée au style %s (max 2 phrases, pédagogique).\n"
+            + "7. N'utilise PAS les mêmes exemples que dans le grain original.\n\n"
+            + "FORMAT JSON OBLIGATOIRE :\n"
+            + "{\n"
+            + "  \"questions\": [\n"
+            + "    {\n"
+            + "      \"question\": \"Énoncé de la question en français ?\",\n"
+            + "      \"difficulty\": \"easy\",\n"
+            + "      \"options\": [\n"
+            + "        {\"id\": \"a\", \"text\": \"Option A\", \"correct\": false},\n"
+            + "        {\"id\": \"b\", \"text\": \"Option B (correcte)\", \"correct\": true},\n"
+            + "        {\"id\": \"c\", \"text\": \"Option C\", \"correct\": false},\n"
+            + "        {\"id\": \"d\", \"text\": \"Option D\", \"correct\": false}\n"
+            + "      ],\n"
+            + "      \"explanation\": \"Explication pédagogique claire en 1-2 phrases.\"\n"
+            + "    }\n"
+            + "  ]\n"
+            + "}",
+            seed, grainTitle,
+            grainContent != null ? grainContent.substring(0, Math.min(200, grainContent.length())) : "",
+            errorsStr, varkStyle, styleHint, scenario, starter, varkStyle
         );
     }
 
@@ -186,112 +206,186 @@ public class OllamaAIService {
             List<String> userErrors,
             String varkStyle) {
 
-        String errorsStr = (userErrors != null && !userErrors.isEmpty())
-                ? String.join(", ", userErrors)
-                : "compréhension générale";
-
+        String errorsStr = formatErrors(userErrors);
         String styleHint = getStyleHint(varkStyle);
+        String seed      = String.valueOf(Instant.now().toEpochMilli() % 9999);
+        String scenario  = pickRandom(SCENARIO_TYPES);
 
         return String.format(
-                "Tu es un expert pédagogique en SQL. L'étudiant a échoué au grain \"%s\".\n"
-                + "Objectif pédagogique : %s\n"
-                + "Erreurs commises : %s\n"
-                + "Style d'apprentissage : %s — %s\n\n"
-                + "Génère une explication alternative COURTE (300-400 mots) du MÊME concept "
-                + "avec une approche différente adaptée au style %s.\n\n"
-                + "RÈGLES STRICTES :\n"
-                + "1. Réponds UNIQUEMENT avec un JSON valide.\n"
-                + "2. Le contenu doit être en français.\n"
-                + "3. Adapte le vocabulaire et les exemples au style d'apprentissage.\n\n"
-                + "FORMAT JSON OBLIGATOIRE :\n"
-                + "{\"title\": \"Titre alternatif\","
-                + "\"content\": \"Explication alternative (300-400 mots)\","
-                + "\"examples\": [\"Exemple concret 1\", \"Exemple concret 2\"],"
-                + "\"key_points\": [\"Point clé 1\", \"Point clé 2\", \"Point clé 3\"]}",
-                originalTitle, originalObjective, errorsStr, varkStyle, styleHint, varkStyle
+            "Tu es un expert pédagogique en SQL. L'étudiant a échoué au grain \"%s\".\n"
+            + "SEED : %s\n"
+            + "Objectif pédagogique : %s\n"
+            + "Erreurs commises : %s\n"
+            + "Style d'apprentissage : %s — %s\n"
+            + "Scénario concret à utiliser : %s\n\n"
+            + "Génère une explication alternative ORIGINALE (300-400 mots) du MÊME concept "
+            + "avec une approche COMPLÈTEMENT DIFFÉRENTE adaptée au style %s.\n\n"
+            + "RÈGLES STRICTES :\n"
+            + "1. Réponds UNIQUEMENT avec un JSON valide.\n"
+            + "2. Le contenu doit être en français.\n"
+            + "3. N'utilise PAS les mêmes exemples que l'explication originale.\n"
+            + "4. Adapte le vocabulaire et les métaphores au style d'apprentissage %s.\n"
+            + "5. Les exemples doivent être concrets, tirés du scénario %s.\n"
+            + "6. Les points clés doivent corriger spécifiquement les erreurs commises.\n\n"
+            + "FORMAT JSON OBLIGATOIRE :\n"
+            + "{\n"
+            + "  \"title\": \"Titre alternatif accrocheur\",\n"
+            + "  \"content\": \"Explication alternative complète (300-400 mots)\",\n"
+            + "  \"examples\": [\n"
+            + "    \"Exemple concret 1 tiré du scénario\",\n"
+            + "    \"Exemple concret 2 avec code SQL si pertinent\"\n"
+            + "  ],\n"
+            + "  \"key_points\": [\n"
+            + "    \"Point clé 1 ciblant une erreur spécifique\",\n"
+            + "    \"Point clé 2 avec règle à retenir\",\n"
+            + "    \"Point clé 3 avec astuce mnémotechnique\"\n"
+            + "  ]\n"
+            + "}",
+            originalTitle, seed, originalObjective, errorsStr,
+            varkStyle, styleHint, scenario, varkStyle, varkStyle, scenario
         );
     }
 
-    // ══════════════════════════════════════════════════════
-    //  HELPERS
-    // ══════════════════════════════════════════════════════
+    private AIGeneratedQuestions parseQuestionsResponse(String json, String grainTitle) {
+        try {
+            return objectMapper.readValue(json, AIGeneratedQuestions.class);
+        } catch (Exception e) {
+            logger.warn("[IA] Désérialisation directe échouée, tentative JsonNode : {}", e.getMessage());
+        }
 
-    /**
-     * Retourne une indication pédagogique adaptée au style VARK de l'apprenant,
-     * intégrée dans le prompt transmis à Ollama.
-     */
-    private String getStyleHint(String varkStyle) {
-        if (varkStyle == null) return "approche pédagogique générale";
-        return switch (varkStyle.toUpperCase()) {
-            case "VISUEL"        -> "utilise des schémas, diagrammes et visualisations structurées";
-            case "AUDITIF"       -> "utilise des explications narratives, des analogies sonores et une narration fluide";
-            case "LECTURE"       -> "utilise des définitions précises, des listes structurées et du texte analytique";
-            case "KINESTHESIQUE" -> "utilise des exemples pratiques, du code SQL concret et des cas de manipulation directe";
-            default              -> "approche pédagogique claire et structurée";
-        };
+        try {
+            JsonNode root          = objectMapper.readTree(json);
+            JsonNode questionsNode = root.path("questions");
+
+            if (questionsNode.isMissingNode() || !questionsNode.isArray()) {
+                throw new RuntimeException("Nœud 'questions' absent ou invalide.");
+            }
+
+            List<AIGeneratedQuestions.Question> questions = new ArrayList<>();
+
+            for (JsonNode qNode : questionsNode) {
+                AIGeneratedQuestions.Question q = new AIGeneratedQuestions.Question();
+                q.setQuestion(qNode.path("question").asText("Question non disponible"));
+                q.setExplanation(qNode.path("explanation").asText("Voir le cours pour plus de détails."));
+
+                List<AIGeneratedQuestions.Option> options = new ArrayList<>();
+                JsonNode optionsNode = qNode.path("options");
+
+                if (optionsNode.isArray()) {
+                    for (JsonNode optNode : optionsNode) {
+                        AIGeneratedQuestions.Option opt = new AIGeneratedQuestions.Option();
+                        opt.setId(optNode.path("id").asText("a"));
+                        opt.setText(optNode.path("text").asText("Option non disponible"));
+                        opt.setCorrect(optNode.path("correct").asBoolean(false));
+                        options.add(opt);
+                    }
+                }
+
+                if (options.stream().noneMatch(AIGeneratedQuestions.Option::isCorrect) && !options.isEmpty()) {
+                    options.get(0).setCorrect(true);
+                }
+
+                q.setOptions(options);
+                questions.add(q);
+            }
+
+            if (questions.isEmpty()) throw new RuntimeException("Aucune question valide extraite.");
+
+            AIGeneratedQuestions result = new AIGeneratedQuestions();
+            result.setQuestions(questions);
+            logger.info("[IA] {} questions extraites via JsonNode.", questions.size());
+            return result;
+
+        } catch (Exception e) {
+            logger.error("[IA] Parsing JsonNode échoué : {}", e.getMessage());
+            return createFallbackQuestions(grainTitle);
+        }
     }
 
-    /**
-     * Nettoie la réponse d'Ollama en supprimant les backticks Markdown
-     * et en extrayant uniquement le bloc JSON valide.
-     */
     private String cleanJsonResponse(String response) {
         if (response == null || response.isBlank()) return "{}";
 
         response = response
-                .replaceAll("(?i)```json", "")
+                .replaceAll("(?is)```json", "")
                 .replaceAll("```", "")
                 .trim();
 
         int start = response.indexOf('{');
-        int end   = response.lastIndexOf('}');
-
-        if (start >= 0 && end > start) {
-            return response.substring(start, end + 1);
+        if (start < 0) {
+            logger.warn("[IA] Aucun bloc JSON trouvé dans la réponse Ollama.");
+            return "{}";
         }
 
-        logger.warn("Impossible d'extraire un bloc JSON valide depuis la réponse Ollama.");
-        return "{}";
+        int depth = 0;
+        int end   = -1;
+        for (int i = start; i < response.length(); i++) {
+            char c = response.charAt(i);
+            if      (c == '{') depth++;
+            else if (c == '}') { depth--; if (depth == 0) { end = i; break; } }
+        }
+
+        if (end < 0) {
+            logger.warn("[IA] JSON incomplet dans la réponse Ollama.");
+            return response.substring(start) + "}".repeat(depth);
+        }
+
+        return response.substring(start, end + 1);
     }
 
-    // ══════════════════════════════════════════════════════
-    //  FALLBACKS (si Ollama est indisponible)
-    // ══════════════════════════════════════════════════════
+    private String getStyleHint(String varkStyle) {
+        if (varkStyle == null) return "approche pédagogique générale, claire et structurée";
+        return switch (varkStyle.toUpperCase()) {
+            case "VISUEL"        -> "utilise des schémas textuels, tableaux comparatifs, et descriptions visuelles structurées";
+            case "AUDITIF"       -> "utilise des explications narratives fluides, des analogies sonores et une progression logique";
+            case "LECTURE"       -> "utilise des définitions précises, listes structurées, termes techniques avec leur définition";
+            case "KINESTHESIQUE" -> "utilise des exemples de code SQL concrets, des cas pratiques et des erreurs réelles à corriger";
+            default              -> "approche pédagogique claire, concrète et structurée avec exemples";
+        };
+    }
+
+    private String formatErrors(List<String> userErrors) {
+        if (userErrors == null || userErrors.isEmpty()) return "concepts généraux du grain";
+        return String.join(" | ", userErrors);
+    }
+
+    private <T> T pickRandom(List<T> list) {
+        return list.get(random.nextInt(list.size()));
+    }
 
     private AIGeneratedQuestions createFallbackQuestions(String grainTitle) {
-        logger.warn("Utilisation du fallback questions pour le grain : [{}]", grainTitle);
+        logger.warn("[IA] Fallback questions statiques pour : [{}]", grainTitle);
 
         AIGeneratedQuestions result = new AIGeneratedQuestions();
 
         AIGeneratedQuestions.Question q1 = new AIGeneratedQuestions.Question();
-        q1.setQuestion("Concernant le grain \"" + grainTitle + "\", quel est le concept SQL fondamental abordé ?");
+        q1.setQuestion("Concernant \"" + grainTitle + "\", quelle affirmation est correcte ?");
         q1.setOptions(Arrays.asList(
-                createOption("a", "La définition et la manipulation des données (DDL / DML)", true),
-                createOption("b", "La gestion des interfaces graphiques",                    false),
-                createOption("c", "Les algorithmes de tri en mémoire",                       false),
-                createOption("d", "Les protocoles de communication réseau",                  false)
+            createOption("a", "La définition et manipulation des données sont au cœur de SQL (DDL / DML)", true),
+            createOption("b", "SQL est uniquement utilisé pour créer des interfaces graphiques",            false),
+            createOption("c", "Les bases de données relationnelles n'utilisent pas SQL",                    false),
+            createOption("d", "SQL ne supporte pas les relations entre tables",                              false)
         ));
-        q1.setExplanation("Ce grain porte sur les fondamentaux SQL abordés dans : " + grainTitle);
+        q1.setExplanation("SQL est le langage standard pour définir (DDL) et manipuler (DML) les données.");
 
         AIGeneratedQuestions.Question q2 = new AIGeneratedQuestions.Question();
-        q2.setQuestion("Quelle clause SQL permet de filtrer les résultats d'une requête SELECT ?");
+        q2.setQuestion("Quelle clause SQL permet de filtrer les lignes d'une table selon une condition ?");
         q2.setOptions(Arrays.asList(
-                createOption("a", "ORDER BY", false),
-                createOption("b", "GROUP BY", false),
-                createOption("c", "WHERE",    true),
-                createOption("d", "HAVING",   false)
+            createOption("a", "ORDER BY — pour trier les résultats",       false),
+            createOption("b", "GROUP BY — pour regrouper les lignes",      false),
+            createOption("c", "WHERE — pour filtrer les lignes",           true),
+            createOption("d", "HAVING — pour filtrer les groupes agrégés", false)
         ));
-        q2.setExplanation("La clause WHERE permet de filtrer les lignes retournées par une requête SELECT selon une condition.");
+        q2.setExplanation("WHERE filtre les lignes AVANT l'agrégation. HAVING filtre les groupes APRÈS un GROUP BY.");
 
         AIGeneratedQuestions.Question q3 = new AIGeneratedQuestions.Question();
-        q3.setQuestion("Quelle instruction SQL est utilisée pour insérer une nouvelle ligne dans une table ?");
+        q3.setQuestion("Quelle est la différence entre PRIMARY KEY et FOREIGN KEY ?");
         q3.setOptions(Arrays.asList(
-                createOption("a", "UPDATE", false),
-                createOption("b", "INSERT INTO", true),
-                createOption("c", "ALTER TABLE", false),
-                createOption("d", "CREATE TABLE", false)
+            createOption("a", "PRIMARY KEY identifie chaque ligne de façon unique ; FOREIGN KEY référence la PRIMARY KEY d'une autre table", true),
+            createOption("b", "Ce sont deux noms différents pour le même concept",    false),
+            createOption("c", "FOREIGN KEY doit toujours être un entier",             false),
+            createOption("d", "PRIMARY KEY peut contenir des valeurs NULL",           false)
         ));
-        q3.setExplanation("L'instruction INSERT INTO permet d'ajouter une nouvelle ligne dans une table existante.");
+        q3.setExplanation("PRIMARY KEY = unicité + non-null. FOREIGN KEY = lien vers la PK d'une autre table.");
 
         result.setQuestions(Arrays.asList(q1, q2, q3));
         return result;
@@ -306,24 +400,23 @@ public class OllamaAIService {
     }
 
     private AlternativeGrain createFallbackAlternativeGrain(String title, String varkStyle) {
-        logger.warn("Utilisation du fallback grain alternatif pour : [{}]", title);
-
+        logger.warn("[IA] Fallback grain alternatif pour : [{}]", title);
         AlternativeGrain result = new AlternativeGrain();
         result.setTitle(title + " — Approche alternative (" + varkStyle + ")");
         result.setContent(
-                "Le service de génération de contenu est temporairement indisponible. "
-                + "Voici un rappel des points essentiels du grain \"" + title + "\". "
-                + "Nous vous recommandons de revoir le contenu multimédia disponible dans les onglets "
-                + "Vidéos et Slides, puis de retenter le quiz."
+            "Le service de génération IA est temporairement indisponible. "
+            + "Voici les points essentiels du grain \"" + title + "\" à retenir. "
+            + "Nous vous recommandons de revoir les ressources disponibles dans les onglets "
+            + "Vidéos et Slides, puis de retenter le quiz pour valider votre compréhension."
         );
         result.setExamples(Arrays.asList(
-                "Relisez les slides du grain pour identifier les concepts clés",
-                "Regardez la vidéo associée en vous concentrant sur les exemples pratiques"
+            "Relisez les slides du grain pour identifier les concepts clés manquants",
+            "Regardez la vidéo associée en notant les exemples pratiques présentés"
         ));
         result.setKey_points(Arrays.asList(
-                "Revoyez les définitions fondamentales du grain",
-                "Pratiquez avec des requêtes SQL simples avant de progresser",
-                "Consultez les ressources complémentaires disponibles dans le lecteur de grain"
+            "Revoyez les définitions fondamentales du grain avant de retenter",
+            "Pratiquez avec des requêtes SQL simples dans le playground kinesthésique",
+            "Consultez les ressources complémentaires disponibles dans les onglets VARK"
         ));
         return result;
     }
