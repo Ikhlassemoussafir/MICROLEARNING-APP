@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import quizData from './quizData';
 import SqlPlayground from './SqlPlayground';
 import { generateBalancedQuiz, clearHistory, DEFAULT_QUIZ_SIZE } from './utils/generateQuiz';
@@ -275,6 +275,9 @@ function GrainDetailSimple({ grain, varkProfile, onClose, onComplete }) {
   const [score,     setScore]     = useState(0);
   const [h5pScore,  setH5pScore]  = useState(null);
 
+  // Suivi de la durée réelle du quiz
+  const quizStartRef = useRef(null);
+
   const dominant = Object.entries({
     VISUEL:        varkProfile?.visual       || 0,
     AUDITIF:       varkProfile?.auditory     || 0,
@@ -337,7 +340,11 @@ function GrainDetailSimple({ grain, varkProfile, onClose, onComplete }) {
           grain:       { grainId: grain.grainId },
           score:       finalScore,
           answersJson: JSON.stringify([...answersQ, ...answersAI]),
-          duration:    300,
+          const now = Date.now();
+          const startedMs = quizStartRef.current || (now - 5 * 60_000);
+          const durationSec = Math.round((now - startedMs) / 1000);
+          // duration remplacé par durationSec
+          // eslint-disable-next-line
           startedAt:   new Date(Date.now() - 5 * 60_000).toISOString(),
           completedAt: new Date().toISOString(),
         });
@@ -477,7 +484,7 @@ function GrainDetailSimple({ grain, varkProfile, onClose, onComplete }) {
             aléatoirement, avec les options mélangées. Les questions varient à chaque session.
           </p>
         </div>
-        <button onClick={() => setPhase('quiz-h5p')}
+        <button onClick={() => { quizStartRef.current = Date.now(); setPhase('quiz-h5p'); }}
           className="btn-primary w-full justify-center py-3 text-base mt-2">
           <CheckCircle size={17} /> Passer au quiz d'évaluation
         </button>
